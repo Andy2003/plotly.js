@@ -3370,8 +3370,11 @@ plots.reselect = function(gd) {
     var B = fullLayout._previousSelections;
     fullLayout._previousSelections = A;
 
-    var mayEmitSelected = fullLayout._reselect ||
-        JSON.stringify(A) !== JSON.stringify(B);
+    var mayEmitSelected =
+        !fullLayout._noFirstEmitSelected && (
+            fullLayout._reselect ||
+            JSON.stringify(A) !== JSON.stringify(B)
+        );
 
     Registry.getComponentMethod('selections', 'reselect')(gd, mayEmitSelected);
 };

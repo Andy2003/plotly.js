@@ -428,7 +428,7 @@ function prepSelect(evt, startX, startY, dragOptions, mode) {
                     // but in case anyone depends on it we don't want to break it now.
                     // Note that click-to-select introduced pre v3 also emitts proper
                     // event data when clickmode is having 'select' in its flag list.
-                    emitSelected(gd, undefined);
+                    emitSelected(0, gd, undefined);
                 }
             }
 
@@ -461,7 +461,7 @@ function prepSelect(evt, startX, startY, dragOptions, mode) {
             }
 
             if(isSelectMode) {
-                emitSelected(gd, eventData);
+                emitSelected(1, gd, eventData);
             }
         }).catch(Lib.error);
     };
@@ -540,7 +540,7 @@ function selectOnClick(evt, gd, xAxes, yAxes, subplot, dragOptions, polygonOutli
             }
 
             if(sendEvents) {
-                emitSelected(gd, eventData);
+                emitSelected(2, gd, eventData);
             }
         }
     }
@@ -733,6 +733,8 @@ function clearSelectionsCache(dragOptions, immediateSelect) {
                 selections = newSelections(outlines, dragOptions);
             }
             if(selections) {
+                gd._fullLayout._noFirstEmitSelected = true;
+
                 Registry.call('_guiRelayout', gd, {
                     selections: selections
                 }).then(function() {
@@ -1197,24 +1199,30 @@ function reselect(gd, mayEmitSelected, selectionTesters, searchTraces, dragOptio
 
     if(
         !plotinfo && // get called from plot_api & plots
-        fullLayout._reselect
+        mayEmitSelected
     ) {
         var activePolygons = getLayoutPolygons(gd, true);
 
-        var xref = activePolygons[0].xref;
-        var yref = activePolygons[0].yref;
-        if(xref && yref) {
-            var poly = castMultiPolygon(activePolygons);
+        if(activePolygons.length) {
+            var xref = activePolygons[0].xref;
+            var yref = activePolygons[0].yref;
+            if(xref && yref) {
+                var poly = castMultiPolygon(activePolygons);
 
-            var fillRangeItems = makeFillRangeItems([
-                getFromId(gd, xref, 'x'),
-                getFromId(gd, yref, 'y')
-            ]);
+                var fillRangeItems = makeFillRangeItems([
+                    getFromId(gd, xref, 'x'),
+                    getFromId(gd, yref, 'y')
+                ]);
 
-            fillRangeItems(eventData, poly);
+                fillRangeItems(eventData, poly);
+            }
         }
 
-        if(sendEvents) emitSelected(gd, eventData);
+        if(gd._fullLayout._noFirstEmitSelected) {
+            gd._fullLayout._noFirstEmitSelected = false;
+        } else {
+            if(sendEvents) emitSelected(3, gd, eventData);
+        }
 
         fullLayout._reselect = false;
     }
@@ -1233,7 +1241,7 @@ function reselect(gd, mayEmitSelected, selectionTesters, searchTraces, dragOptio
 
         if(sendEvents) {
             if(eventData.points.length) {
-                emitSelected(gd, eventData);
+                emitSelected(4, gd, eventData);
             } else {
                 emitDeselect(gd);
             }
@@ -1526,10 +1534,12 @@ function emitSelecting(gd, eventData) {
     gd.emit('plotly_selecting', eventData);
 }
 
-function emitSelected(gd, eventData) {
+function emitSelected(_, gd, eventData) {
     if(eventData) {
         eventData.selections = (gd.layout || {}).selections || [];
     }
+
+    console.log(_, eventData)
 
     gd.emit('plotly_selected', eventData);
 }
